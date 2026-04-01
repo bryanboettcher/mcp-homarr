@@ -122,6 +122,36 @@ export class HomarrClient {
   }
 
   /**
+   * Encode input as superjson-compatible format.
+   * Detects Date values in top-level object properties and produces the
+   * {json, meta} structure that tRPC's superjson transformer expects.
+   */
+  private encodeSuperJson(input: unknown): { json: unknown; meta?: unknown } {
+    if (input === undefined || input === null) return { json: input ?? {} };
+    if (typeof input !== "object" || Array.isArray(input)) return { json: input };
+
+    const obj = input as Record<string, unknown>;
+    const jsonObj: Record<string, unknown> = {};
+    const metaValues: Record<string, string[]> = {};
+    let hasMeta = false;
+
+    for (const [key, val] of Object.entries(obj)) {
+      if (val instanceof Date) {
+        jsonObj[key] = val.toISOString();
+        metaValues[key] = ["Date"];
+        hasMeta = true;
+      } else {
+        jsonObj[key] = val;
+      }
+    }
+
+    if (hasMeta) {
+      return { json: jsonObj, meta: { values: metaValues } };
+    }
+    return { json: jsonObj };
+  }
+
+  /**
    * Call a tRPC mutation (POST).
    */
   async trpc(procedure: string, input?: unknown): Promise<unknown> {
@@ -134,7 +164,7 @@ export class HomarrClient {
       ...this.authHeaders(),
     };
 
-    const body = input !== undefined ? { json: input } : { json: {} };
+    const body = this.encodeSuperJson(input);
 
     const res = await fetch(url, {
       method: "POST",

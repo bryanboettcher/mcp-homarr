@@ -1,0 +1,12 @@
+services:
+  homarr:
+    image: ghcr.io/homarr-labs/homarr:latest
+    ports:
+      - "17576:7575"
+    environment:
+      SECRET_ENCRYPTION_KEY: de1b500b360e5111c05bb407f99d30ca2b433aba38cde0f3e4b45a7f12cbfbda
+    volumes:
+      - homarr-data:/appdata
+
+volumes:
+  homarr-data:
