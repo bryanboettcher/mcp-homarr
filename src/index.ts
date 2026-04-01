@@ -115,7 +115,7 @@ Actions: list, get, search, exists, permissions, create, rename, duplicate, dele
     try {
       switch (action) {
         case "list": return ok(await q("board.getAllBoards"));
-        case "get": return ok(await q("board.getBoardByName", v.name));
+        case "get": return ok(await q("board.getBoardByName", { name: v.name }));
         case "search": return ok(await q("board.search", { query: v.query, limit: v.limit ?? 10 }));
         case "exists": return ok(await q("board.exists", v.name));
         case "permissions": return ok(await q("board.getBoardPermissions", { id: v.id }));
