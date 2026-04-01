@@ -67,10 +67,10 @@ async function completeOnboarding(): Promise<void> {
 async function getSessionCookie(): Promise<string> {
   const csrfRes = await fetch(`${BASE_URL}/api/auth/csrf`);
   const { csrfToken } = (await csrfRes.json()) as { csrfToken: string };
-  const csrfCookies = (csrfRes.headers as any)
-    .getSetCookie()
-    .map((c: string) => c.split(";")[0])
-    .join("; ");
+  const rawCookies = (csrfRes.headers as any).getSetCookie?.() as string[] | undefined;
+  const csrfCookies = rawCookies
+    ? rawCookies.map((c: string) => c.split(";")[0]).join("; ")
+    : (csrfRes.headers.get("set-cookie") ?? "");
 
   const loginRes = await fetch(`${BASE_URL}/api/auth/callback/credentials`, {
     method: "POST",
@@ -86,7 +86,7 @@ async function getSessionCookie(): Promise<string> {
     redirect: "manual",
   });
 
-  const loginCookies = (loginRes.headers as any).getSetCookie() as string[];
+  const loginCookies = ((loginRes.headers as any).getSetCookie?.() ?? []) as string[];
   for (const cookie of loginCookies) {
     const val = cookie.split(";")[0];
     if (val.includes("session-token=")) {

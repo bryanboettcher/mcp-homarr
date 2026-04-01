@@ -316,7 +316,12 @@ Actions: list, create, delete`,
     try {
       switch (action) {
         case "list": return ok(await q("invite.getAll"));
-        case "create": return ok(await m("invite.createInvite", { expirationDate: new Date(v.expirationDate).toISOString() }));
+        case "create": {
+          if (!v.expirationDate) return err("expirationDate is required (ISO 8601 string)");
+          const d = new Date(v.expirationDate);
+          if (isNaN(d.getTime())) return err(`Invalid expirationDate: ${v.expirationDate}`);
+          return ok(await m("invite.createInvite", { expirationDate: d }));
+        }
         case "delete": return ok(await m("invite.deleteInvite", { id: v.id }) ?? { success: true });
         default: return err(`Unknown action: ${action}`);
       }

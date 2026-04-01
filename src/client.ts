@@ -151,10 +151,7 @@ export class HomarrClient {
     return { json: jsonObj };
   }
 
-  /**
-   * Call a tRPC mutation (POST).
-   */
-  async trpc(procedure: string, input?: unknown): Promise<unknown> {
+  async trpc(procedure: string, input?: unknown, _retried = false): Promise<unknown> {
     await this.ensureAuthenticated();
 
     const url = `${this.baseUrl}/api/trpc/${procedure}`;
@@ -173,24 +170,21 @@ export class HomarrClient {
       redirect: "manual",
     });
 
-    if ((res.status === 302 || res.status === 401) && !this.apiKey) {
+    if ((res.status === 302 || res.status === 401) && !this.apiKey && !_retried) {
       this.sessionCookie = null;
       await this.ensureAuthenticated();
-      return this.trpc(procedure, input);
+      return this.trpc(procedure, input, true);
     }
 
     const text = await res.text();
     if (!res.ok) {
-      throw new Error(`Homarr tRPC error ${res.status} on ${procedure}: ${text}`);
+      throw new Error(`${procedure} failed (${res.status}): ${this.extractTrpcError(text)}`);
     }
 
     return this.unwrapTrpc(text);
   }
 
-  /**
-   * Call a tRPC query (GET).
-   */
-  async trpcQuery(procedure: string, input?: unknown): Promise<unknown> {
+  async trpcQuery(procedure: string, input?: unknown, _retried = false): Promise<unknown> {
     await this.ensureAuthenticated();
 
     let url = `${this.baseUrl}/api/trpc/${procedure}`;
@@ -210,18 +204,27 @@ export class HomarrClient {
       redirect: "manual",
     });
 
-    if ((res.status === 302 || res.status === 401) && !this.apiKey) {
+    if ((res.status === 302 || res.status === 401) && !this.apiKey && !_retried) {
       this.sessionCookie = null;
       await this.ensureAuthenticated();
-      return this.trpcQuery(procedure, input);
+      return this.trpcQuery(procedure, input, true);
     }
 
     const text = await res.text();
     if (!res.ok) {
-      throw new Error(`Homarr tRPC query error ${res.status} on ${procedure}: ${text}`);
+      throw new Error(`${procedure} failed (${res.status}): ${this.extractTrpcError(text)}`);
     }
 
     return this.unwrapTrpc(text);
+  }
+
+  private extractTrpcError(text: string): string {
+    try {
+      const parsed = JSON.parse(text);
+      const msg = parsed?.error?.json?.message ?? parsed?.[0]?.error?.json?.message;
+      if (msg) return msg;
+    } catch { /* keep raw text */ }
+    return text;
   }
 
   private unwrapTrpc(text: string): unknown {
